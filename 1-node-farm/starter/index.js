@@ -1,7 +1,11 @@
 const fs = require("fs");
 const http = require("http");
-const path = require("path");
+// const path = require("path");
 const url = require("url");
+
+const slugify = require("slugify");
+
+const replaceTemplate = require("./modules/replaceTemplate");
 ////////////////////////////////////////////
 //Files
 //Bloking synchronous way
@@ -30,23 +34,15 @@ fs.writeFileSync("./txt/output.txt", textOut); */
 console.log("Will read file!"); */
 ////////////////////////////////////////////
 //Server
-const reaplaceTemplate = (temp, product) => {
-  let output = temp.replace(/{%PRODUCTNAME%}/g, product.productName);
-  output = output.replace(/{%IMAGE%}/g, product.image);
-  output = output.replace(/{%PRICE%}/g, product.price);
-  output = output.replace(/{%FROM%}/g, product.from);
-  output = output.replace(/{%NUTRIENTS%}/g, product.nutrients);
-  output = output.replace(/{%QUANTITY%}/g, product.quantity);
-  output = output.replace(/{%DESCRIPTION%}/g, product.description);
-  output = output.replace(/{%ID%}/g, product.id);
-
-  if (!product.organic)
-    output = output.replace(/{%NOT_ORGANIC%}/g, "not-organic");
-  return output;
-};
 
 const devdata = fs.readFileSync(`${__dirname}/dev-data/data.json`, "utf-8");
 const dataObj = JSON.parse(devdata);
+
+const dataObjSlugs = dataObj.map((el) => {
+  return (el.slug = slugify(el.productName, { lower: true }));
+});
+
+console.log(dataObj);
 
 const tempOverview = fs.readFileSync(
   `${__dirname}/templates/template-overview.html`,
@@ -64,12 +60,13 @@ const tempProduct = fs.readFileSync(
 const server = http.createServer((request, response) => {
   const { query, pathname } = url.parse(request.url, true);
   console.log(pathname);
+  console.log(query);
 
   //Overview Page
   if (pathname === "/" || pathname === "/overview") {
     response.writeHead(200, { "Content-type": "text/html" });
     const cardsHtml = dataObj
-      .map((el) => reaplaceTemplate(tempCard, el))
+      .map((el) => replaceTemplate(tempCard, el))
       .join("");
 
     const output = tempOverview.replace("{%PRODUCT_CARDS%}", cardsHtml);
@@ -80,7 +77,7 @@ const server = http.createServer((request, response) => {
   } else if (pathname === "/product") {
     response.writeHead(200, { "Content-type": "text/html" });
     const product = dataObj[query.id];
-    const output = reaplaceTemplate(tempProduct, product);
+    const output = replaceTemplate(tempProduct, product);
 
     response.end(output);
 
